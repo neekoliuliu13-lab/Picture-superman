@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>组图喵 · 使用说明</title>
+<style>
+  :root{
+    --bg:#0b0b0c; --panel:#161618; --panel2:#1d1d20; --line:#2a2a2e;
+    --text:#ececf0; --muted:#9a9aa2; --accent:#ff5470; --accent2:#3a86ff; --gold:#ffd60a;
+    --radius:14px;
+    --font:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.7;
+    background-image:radial-gradient(circle at 1px 1px,#1a1a1c 1px,transparent 0);background-size:24px 24px;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+  header{margin-bottom:36px}
+  .badge{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);
+    border-radius:20px;padding:4px 12px;margin-bottom:16px}
+  h1{font-size:34px;margin:0 0 10px;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px 26px;margin:18px 0}
+  h2{font-size:20px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+    background:var(--accent2);color:#fff;border-radius:8px;font-size:14px;flex:0 0 auto}
+  h3{font-size:15px;margin:18px 0 6px;color:var(--text)}
+  p{margin:8px 0;color:var(--text)}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:6px 0;color:var(--text)}
+  .muted{color:var(--muted)}
+  kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;
+    padding:1px 7px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+    padding:1px 8px;font-size:13px;color:var(--muted)}
+  .gold{color:var(--gold)} .blue{color:var(--accent2)} .pink{color:var(--accent)}
+  .steps{counter-reset:step;list-style:none;padding:0}
+  .steps li{position:relative;padding:10px 0 10px 44px;border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:10px;
+    width:28px;height:28px;background:var(--panel2);border:1px solid var(--line);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;color:var(--accent2);font-weight:600;font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card b{display:block;margin-bottom:4px}
+  .tip{border-left:3px solid var(--gold);background:rgba(255,214,10,.06);
+    border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:14px}
+  .warn{border-left:3px solid var(--accent);background:rgba(255,84,112,.06)}
+  code.path{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+    color:var(--muted);word-break:break-all;margin:8px 0}
+  footer{margin-top:36px;text-align:center;color:var(--muted);font-size:13px}
+  a{color:var(--accent2);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">单文件 · 离线可用 · 跨设备</span>
+    <h1>组图喵 · 使用说明</h1>
+    <p class="sub">把多张评审截图按模版自动组图，支持文字编辑、拖动换位、箭头标注，一键导出高清 JPG / PNG。</p>
+  </header>
+
+  <section>
+    <h2><span class="n">★</span>这是什么</h2>
+    <p>一个<b>单文件网页工具</b>（<span class="tag">组图喵.html</span>）。所有代码已内联，<b>无需联网、无需安装、不上传服务器</b>，图片只在你本机浏览器里处理。</p>
+    <ul>
+      <li>跨平台：Mac / Windows / iPad / 安卓，任意现代浏览器（Chrome / Edge / Safari）双击即可打开。</li>
+      <li>它是「工具」不是「存档」：刷新或换设备不保留上次内容，成果请用「导出」存成图片留底。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span>快速上手</h2>
+    <ol class="steps">
+      <li><b>上传图片</b>：点左侧「① 上传图片」区域选择文件，或把图片<b>拖进去</b>、<kbd>Cmd/Ctrl</kbd>+<kbd>V</kbd> 粘贴，支持一次多张。</li>
+      <li><b>填文字</b>：在「② 文字内容」里写标题、底部备注；每张图的标注在下方列表逐条填（可留空）。</li>
+      <li><b>调版式</b>：在「③ 排版参数」里改单行图数、图片宽度、间距、颜色、标题字体等。</li>
+      <li><b>（可选）画箭头</b>：在「④ 箭头连线」里开启，标注交互链路。</li>
+      <li><b>导出</b>：右上角选 JPG/PNG 与清晰度，点「一键导出高清」下载图片。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>在预览区直接编辑</h2>
+    <div class="grid">
+      <div class="card"><b>✏️ 点字即改</b><span class="muted">在右侧预览里直接点<b>标题 / 图片标注 / 底部备注</b>，原地弹出输入框修改。<br><kbd>回车</kbd> 保存标题，多行用 <kbd>⌘/Ctrl</kbd>+<kbd>回车</kbd>，<kbd>Esc</kbd> 取消。</span></div>
+      <div class="card"><b>↔ 拖图换位</b><span class="muted">在预览里<b>按住图片拖动</b>，出现蓝色插入条，松手即重排；左侧列表顺序同步（列表里的拖拽手柄也能排序）。</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>箭头连线（可选）</h2>
+    <p>用于说明交互链路，<b>默认不画</b>，按需使用。在「④ 箭头连线」面板：</p>
+    <ul>
+      <li>点 <span class="tag">✏️ 开始画箭头</span> 进入画箭头模式，在预览区<b>按住拖动</b>即可画一条。</li>
+      <li><b>箭头样式</b>：<span class="gold">直线箭头</span>（两点直连）或 <span class="gold">弯折箭头</span>（自动走直角折线）。</li>
+      <li>选中箭头后：拖<b>两端白点</b>调起止点；弯折箭头拖<b>中间白点</b>调折点位置。</li>
+      <li>可设箭头<b>颜色 / 粗细</b>；按 <kbd>Delete</kbd> 删除选中箭头，<span class="tag">清除全部箭头</span> 一键清空，<kbd>Esc</kbd> 退出模式。</li>
+    </ul>
+    <div class="tip">建议先排好图、定好版式，<b>最后再画箭头</b>，避免改版式后箭头位置偏移。</div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>导出</h2>
+    <ul>
+      <li><b>格式</b>：JPG（体积小）或 PNG（无损、可透明边缘）。</li>
+      <li><b>清晰度</b>：标准 2x / 高清 3x / 超清 4x，数值越大越清晰、文件越大。</li>
+      <li>导出的图片包含所有内容（含箭头），但不含编辑时的选中把手。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>传到另一台设备</h2>
+    <p>把工具文件发到目标设备即可：微信 / 飞书 / 邮件，或拷到 U 盘 / 云盘（iCloud、坚果云等）。</p>
+    <code class="path">组图喵.html</code>
+    <p class="muted">在新设备上双击该文件 → 浏览器打开 → 直接使用，无需任何额外环境。</p>
+    <div class="tip warn">iPad / 手机触屏也基本可用（拖图、画箭头）。若触屏体验不顺，可以反馈，我再加触摸事件适配。</div>
+  </section>
+
+  <footer>组图喵 · 本地离线 · 数据不出本机</footer>
+</div>
+</body>
+</html>
