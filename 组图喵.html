@@ -137,6 +137,18 @@
   .updatebar button{background:#fff;color:var(--accent2);border:none;border-radius:20px;
     padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
   .updatebar .x{background:transparent;color:#fff;padding:2px 6px;font-weight:400;opacity:.85}
+  .toastwrap{position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:10000;
+    display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none}
+  .toast{display:flex;align-items:flex-start;gap:10px;max-width:min(86vw,520px);
+    background:#26262b;color:#f2f2f3;border:1px solid var(--line);border-left:4px solid var(--accent2);
+    padding:12px 16px;border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,.55);font-size:13px;line-height:1.5;
+    animation:toastin .22s ease;pointer-events:auto}
+  .toast.error{border-left-color:var(--accent)}
+  .toast.warn{border-left-color:#ffb020}
+  .toast.success{border-left-color:#34c759}
+  .toast .ic{font-size:15px;line-height:1.4}
+  .toast .msg{flex:1}
+  @keyframes toastin{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -191,8 +203,8 @@
         </div>
         <label style="margin-top:10px">标题字体</label>
         <select id="titleFont">
-          <option value='"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif' selected>中文默认（苹方）</option>
-          <option value='"Helvetica Neue",Helvetica,Arial,"PingFang SC",sans-serif'>英文默认（Helvetica）</option>
+          <option value='"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif'>中文默认（苹方）</option>
+          <option value='"Helvetica Neue",Helvetica,Arial,"PingFang SC",sans-serif' selected>英文默认（Helvetica）</option>
         </select>
         <label>底部备注</label>
         <input type="text" id="noteInput" placeholder="评审备注（留空则不显示）" />
@@ -267,7 +279,7 @@
 "use strict";
 
 // ---------- 版本与自动更新 ----------
-const APP_VERSION = "2026.06.11-2";   // 每次发布新版时改这里（与 version.json 保持一致）
+const APP_VERSION = "2026.06.11-3";   // 每次发布新版时改这里（与 version.json 保持一致）
 let _updateShown=false;
 function checkUpdate(){
   if(!/^https?:/.test(location.protocol)) return; // 本地 file:// 跳过
@@ -286,6 +298,21 @@ function showUpdateBar(){
   bar.querySelector("#upClose").onclick=()=>{ bar.remove(); _updateShown=false; };
 }
 
+// ---------- Toast 轻提示 ----------
+function toast(msg, type, ms){
+  let wrap=document.getElementById("toastWrap");
+  if(!wrap){ wrap=document.createElement("div"); wrap.id="toastWrap"; wrap.className="toastwrap"; document.body.appendChild(wrap); }
+  const ic = type==="error"?"⚠️" : type==="warn"?"💡" : type==="success"?"✅" : "ℹ️";
+  const el=document.createElement("div");
+  el.className="toast"+(type?(" "+type):"");
+  el.innerHTML=`<span class="ic"></span><span class="msg"></span>`;
+  el.querySelector(".ic").textContent=ic;
+  el.querySelector(".msg").textContent=msg;
+  wrap.appendChild(el);
+  const dur=ms || (type==="error"?5200:3200);
+  setTimeout(()=>{ el.style.transition="opacity .25s,transform .25s"; el.style.opacity="0"; el.style.transform="translateY(-8px)"; setTimeout(()=>el.remove(),260); }, dur);
+}
+
 // ---------- 品牌封面图（用于空状态占位） ----------
 const LOGO_IMG = new Image();
 LOGO_IMG.onload = ()=>{ try{ if(typeof render==="function") render(); }catch(e){} };
@@ -299,7 +326,7 @@ const DEFAULTS = {
   padBottom:59, boardGap:48, captionGap:26, noteSize:20, noteOpacity:0.7,
   pillRadius:100, pillPadX:32, pillPadY:20, pillBg:"rgba(255,255,255,0.12)",
   fontFamily:'"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif',
-  titleFamily:'"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif',
+  titleFamily:'"Helvetica Neue",Helvetica,Arial,"PingFang SC",sans-serif',
   titleSpacing:0,
   arrowColor:"#ffd60a", arrowWidth:4,
 };
@@ -585,25 +612,40 @@ function drawArrow(c,a,sel){
   c.restore();
 }
 
-// 选中图片的高亮边框（用于删除/替换提示）
+// 选中图片的 8 个缩放手柄（四角 + 四边中点）
+function imgHandles(im){
+  const x=im.x,y=im.y,w=im.w,h=im.h;
+  return [
+    {id:"nw",hx:x,      hy:y,      cur:"nwse-resize"},
+    {id:"n", hx:x+w/2,  hy:y,      cur:"ns-resize"},
+    {id:"ne",hx:x+w,    hy:y,      cur:"nesw-resize"},
+    {id:"e", hx:x+w,    hy:y+h/2,  cur:"ew-resize"},
+    {id:"se",hx:x+w,    hy:y+h,    cur:"nwse-resize"},
+    {id:"s", hx:x+w/2,  hy:y+h,    cur:"ns-resize"},
+    {id:"sw",hx:x,      hy:y+h,    cur:"nesw-resize"},
+    {id:"w", hx:x,      hy:y+h/2,  cur:"ew-resize"},
+  ];
+}
+// 选中图片的高亮边框 + 缩放手柄
 function drawImageSel(x,y,w,h){
   ctx.save();
   ctx.strokeStyle="#3a86ff"; ctx.lineWidth=3; ctx.setLineDash([]);
   ctx.strokeRect(x-1.5,y-1.5,w+3,h+3);
-  // 右下角缩放手柄
-  const s=Math.max(14, Math.min(26, w*0.06));
+  const s=Math.max(12, Math.min(22, w*0.05));
   ctx.fillStyle="#fff"; ctx.strokeStyle="#3a86ff"; ctx.lineWidth=2.5;
-  ctx.fillRect(x+w-s/2, y+h-s/2, s, s);
-  ctx.strokeRect(x+w-s/2, y+h-s/2, s, s);
+  for(const hnd of imgHandles({x,y,w,h})){
+    ctx.fillRect(hnd.hx-s/2, hnd.hy-s/2, s, s);
+    ctx.strokeRect(hnd.hx-s/2, hnd.hy-s/2, s, s);
+  }
   ctx.restore();
 }
-// 命中选中图片右下角缩放手柄
+// 命中选中图片的缩放手柄，返回 {id,cur} 或 null
 function hitResizeHandle(x,y){
-  if(state.selImage==null||!state.layout) return false;
+  if(state.selImage==null||!state.layout) return null;
   const it=state.layout.items.find(i=>i.index===state.selImage);
-  if(!it) return false;
-  const cx=it.img.x+it.img.w, cy=it.img.y+it.img.h;
-  return Math.hypot(x-cx,y-cy) <= 18;
+  if(!it) return null;
+  for(const hnd of imgHandles(it.img)){ if(Math.hypot(x-hnd.hx,y-hnd.hy)<=16) return hnd; }
+  return null;
 }
 function drawPlaceholder(x,y,w,h){
   ctx.save();
@@ -849,11 +891,22 @@ function bindCanvas(){
       drag={kind:"arrownew",arrow:a}; state._arrowPreview=a; state.selArrow=null; render(); return;
     }
     // 编辑模式
-    // 优先：拖拽选中图片右下角缩放
-    if(state.selImage!=null && hitResizeHandle(x,y)){
-      const it=state.layout.items.find(i=>i.index===state.selImage);
-      drag={kind:"resize",index:state.selImage,imgTop:it.img.y};
-      return;
+    // 优先：拖拽选中图片的缩放手柄（四角 + 四边）
+    if(state.selImage!=null){
+      const rh=hitResizeHandle(x,y);
+      if(rh){
+        const li=state.layout.items.find(i=>i.index===state.selImage);
+        const it=state.images[state.selImage];
+        const ratio=(it&&it.h&&it.w)?it.h/it.w:1.6;
+        const r=canvas.getBoundingClientRect();
+        const bw=canvas.width/state.renderScale, bh=canvas.height/state.renderScale;
+        // 按下时锁定起始尺寸与「屏幕→画板」换算比例（拖动中固定，避免反馈抖动）
+        drag={kind:"resize",index:state.selImage,handle:rh.id,
+              w0:li.img.w, h0:li.img.h, ratio,
+              sClientX:e.clientX, sClientY:e.clientY,
+              scaleX:bw/Math.max(1,r.width), scaleY:bh/Math.max(1,r.height)};
+        return;
+      }
     }
     if(state.layout && state.layout.emptyDrop && rectHit(state.layout.emptyDrop,x,y)){ $("fileInput").click(); return; }
     const im=hitImage(x,y);
@@ -875,7 +928,23 @@ function bindCanvas(){
       render();
     }
     else if(drag.kind==="arrowmove"){ const dx=x-drag.ox,dy=y-drag.oy,a=drag.arrow; a.x1+=dx;a.y1+=dy;a.x2+=dx;a.y2+=dy; drag.ox=x;drag.oy=y; render(); }
-    else if(drag.kind==="resize"){ const it=state.images[drag.index]; if(it){ it.userH=Math.max(60, y-drag.imgTop); render(); } }
+    else if(drag.kind==="resize"){
+      const it=state.images[drag.index];
+      if(it){
+        const {w0,h0,ratio,handle:h,sClientX,sClientY,scaleX,scaleY}=drag;
+        const dbx=(e.clientX-sClientX)*scaleX; // 屏幕位移 → 画板位移（固定比例）
+        const dby=(e.clientY-sClientY)*scaleY;
+        let hw=null, hh=null;
+        if(h.includes("e")) hw=(w0+dbx)*ratio; // 向右拖变大
+        if(h.includes("w")) hw=(w0-dbx)*ratio; // 向左拖变大
+        if(h.includes("s")) hh=(h0+dby);       // 向下拖变大
+        if(h.includes("n")) hh=(h0-dby);       // 向上拖变大
+        let newH;
+        if(hw!=null && hh!=null) newH=Math.max(hw,hh); // 角
+        else newH = hw!=null?hw:hh;
+        it.userH=Math.max(60,newH); render();
+      }
+    }
     else if(drag.kind==="image"){ if(Math.hypot(x-drag.sx,y-drag.sy)>5){ drag.moved=true; updateDragHint(x,y); render(); } }
     else if(drag.kind==="text"){ if(Math.hypot(x-drag.sx,y-drag.sy)>5) drag.moved=true; }
   });
@@ -893,7 +962,8 @@ function bindCanvas(){
     if(drag||editorOpen()) return;
     if(state.mode==="arrow"){ canvas.style.cursor=(hitArrowPt(toBoard(e).x,toBoard(e).y)?"move":"crosshair"); return; }
     const {x,y}=toBoard(e);
-    if(state.selImage!=null && hitResizeHandle(x,y)) canvas.style.cursor="nwse-resize";
+    const rh=state.selImage!=null?hitResizeHandle(x,y):null;
+    if(rh) canvas.style.cursor=rh.cur;
     else if(state.layout && state.layout.emptyDrop && rectHit(state.layout.emptyDrop,x,y)) canvas.style.cursor="pointer";
     else if(hitImage(x,y)!=null) canvas.style.cursor="grab";
     else if(hitText(x,y)) canvas.style.cursor="text";
@@ -951,7 +1021,7 @@ async function handleFiles(files){
 
 // ---------- 导出（一键高清，JPG / PNG） ----------
 function exportImage(){
-  if(!state.images.length){ alert("还没有图片可导出"); return; }
+  if(!state.images.length){ toast("还没有图片可导出，请先上传至少一张图片","warn"); return; }
   const previewScale=state.renderScale;
   const exportScale=num($("exportQuality").value,3);
   const fmt=$("exportFormat").value==="png"?"png":"jpg";
@@ -963,12 +1033,21 @@ function exportImage(){
     render();
     dataURL = fmt==="png" ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg",0.95);
   }catch(e){
-    alert("导出失败："+(e&&e.message||e));
+    const name=e&&e.name||"", msg=(e&&e.message)||String(e);
+    let reason;
+    if(name==="SecurityError"||/taint/i.test(msg)) reason="图片来源受跨域限制，画布被污染，无法导出。请改用本地上传的图片。";
+    else if(/exceed|maximum|memory|too large|size/i.test(msg)) reason="图片尺寸过大超出浏览器限制，请调低「导出清晰度」或减少图片/降低图片高度后重试。";
+    else reason=msg||"未知错误";
+    toast("导出失败："+reason,"error");
     return;
   }finally{
     state._exporting=false;
     state.renderScale=previewScale;  // 还原预览
     render();
+  }
+  if(!dataURL || dataURL.length<128){
+    toast("导出失败：图片尺寸可能过大，请调低「导出清晰度」或减少图片后重试。","error");
+    return;
   }
   const a=document.createElement("a");
   const ts=new Date().toISOString().replace(/[-:T]/g,"").slice(0,14);
@@ -976,6 +1055,7 @@ function exportImage(){
   const base=(state.title||"").replace(/[\\/:*?"<>|\n\r]+/g,"").trim().slice(0,80) || `组图喵_${ts}`;
   a.download=`${base}.${fmt}`;
   a.href=dataURL; a.click();
+  toast("已导出："+a.download,"success");
 }
 
 // ---------- 参数绑定 ----------
