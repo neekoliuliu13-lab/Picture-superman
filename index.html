@@ -267,7 +267,7 @@
 "use strict";
 
 // ---------- 版本与自动更新 ----------
-const APP_VERSION = "2026.06.11-1";   // 每次发布新版时改这里（与 version.json 保持一致）
+const APP_VERSION = "2026.06.11-2";   // 每次发布新版时改这里（与 version.json 保持一致）
 let _updateShown=false;
 function checkUpdate(){
   if(!/^https?:/.test(location.protocol)) return; // 本地 file:// 跳过
@@ -972,7 +972,9 @@ function exportImage(){
   }
   const a=document.createElement("a");
   const ts=new Date().toISOString().replace(/[-:T]/g,"").slice(0,14);
-  a.download=`组图喵_${ts}.${fmt}`;
+  // 文件名自动取标题文案（去掉文件名非法字符），标题为空时回退
+  const base=(state.title||"").replace(/[\\/:*?"<>|\n\r]+/g,"").trim().slice(0,80) || `组图喵_${ts}`;
+  a.download=`${base}.${fmt}`;
   a.href=dataURL; a.click();
 }
 
@@ -1055,6 +1057,20 @@ function init(){
   $("zoomFit").addEventListener("click",()=>setZoom(0,true));
   $("zoomLabel").addEventListener("click",()=>setZoom(1,false));
   window.addEventListener("resize",()=>{ if(state.zoomFit) applyZoom(); });
+
+  // 鼠标滚轮缩放预览（以光标位置为锚点）
+  $("stage").addEventListener("wheel",(e)=>{
+    e.preventDefault();
+    const stage=$("stage");
+    const r1=canvas.getBoundingClientRect();
+    const fx=(e.clientX-r1.left)/Math.max(1,r1.width);
+    const fy=(e.clientY-r1.top)/Math.max(1,r1.height);
+    const factor=Math.exp(-e.deltaY*0.0015);
+    setZoom(state.zoom*factor,false);
+    const r2=canvas.getBoundingClientRect();
+    stage.scrollLeft += (r2.left+fx*r2.width)-e.clientX;
+    stage.scrollTop  += (r2.top +fy*r2.height)-e.clientY;
+  },{passive:false});
   $("resetBtn").addEventListener("click",()=>{ state.images=[]; state.arrows=[]; state.selArrow=null; state.selImage=null; renderList(); render(); });
   $("resetParams").addEventListener("click",resetParams);
 
