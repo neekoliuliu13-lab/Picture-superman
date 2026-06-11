@@ -191,12 +191,8 @@
         </div>
         <label style="margin-top:10px">标题字体</label>
         <select id="titleFont">
-          <option value='"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif' selected>苹方·标准（默认）</option>
-          <option value='"Songti SC","STSong",Georgia,"PingFang SC",serif'>宋体优雅</option>
-          <option value='"Yuanti SC","PingFang SC",sans-serif'>圆体亲和</option>
-          <option value='"Kaiti SC","STKaiti",serif'>楷体手写</option>
-          <option value='"Hiragino Sans GB","PingFang SC",sans-serif'>冬青黑·现代</option>
-          <option value='Futura,"Avenir Next","PingFang SC",sans-serif'>Futura·几何</option>
+          <option value='"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif' selected>中文默认（苹方）</option>
+          <option value='"Helvetica Neue",Helvetica,Arial,"PingFang SC",sans-serif'>英文默认（Helvetica）</option>
         </select>
         <label>底部备注</label>
         <input type="text" id="noteInput" placeholder="评审备注（留空则不显示）" />
@@ -205,7 +201,7 @@
           <input type="color" id="noteColor" value="#ffffff" />
           <button class="mini" id="noteColorReset" title="跟随全局文字颜色">默认</button>
         </div>
-        <div class="hint">预览区可：<b>点文字编辑</b> · <b>点图片选中后按 Delete 删除</b> · <b>双击图片替换</b> · <b>拖动换位</b>。</div>
+        <div class="hint">预览区可：<b>点文字编辑</b> · <b>点图片选中</b>（按 Delete 删除 / 拖右下角调整大小）· <b>双击图片替换</b> · <b>拖动换位</b>。默认所有图片等高、宽度自适应。</div>
         <div class="imglist" id="imgList"><div class="empty">还没有图片，先从上方上传。</div></div>
       </div>
     </div>
@@ -221,7 +217,7 @@
         </div>
         <div class="grid2" style="margin-top:10px">
           <div class="f"><label>单行最多</label><input type="text" id="pMaxPerRow" value="8" /></div>
-          <div class="f"><label>图片宽度</label><input type="text" id="pImgW" value="390" /></div>
+          <div class="f"><label>图片高度</label><input type="text" id="pImgH" value="844" /></div>
           <div class="f"><label>列间距</label><input type="text" id="pColGap" value="41" /></div>
           <div class="f"><label>行间距</label><input type="text" id="pRowGap" value="64" /></div>
           <div class="f"><label>标题字号</label><input type="text" id="pTitleSize" value="32" /></div>
@@ -271,7 +267,7 @@
 "use strict";
 
 // ---------- 版本与自动更新 ----------
-const APP_VERSION = "2026.06.10-3";   // 每次发布新版时改这里（与 version.json 保持一致）
+const APP_VERSION = "2026.06.11-1";   // 每次发布新版时改这里（与 version.json 保持一致）
 let _updateShown=false;
 function checkUpdate(){
   if(!/^https?:/.test(location.protocol)) return; // 本地 file:// 跳过
@@ -298,7 +294,7 @@ LOGO_IMG.src = "logo.png";
 // ---------- 默认参数（来自 Figma 模版） ----------
 const DEFAULTS = {
   bg:"#1c1c1c", fg:"#ffffff",
-  maxPerRow:8, imgW:390, colGap:41, rowGap:64,
+  maxPerRow:8, imgH:844, colGap:41, rowGap:64,
   titleSize:32, capSize:20, padX:94, padY:80,
   padBottom:59, boardGap:48, captionGap:26, noteSize:20, noteOpacity:0.7,
   pillRadius:100, pillPadX:32, pillPadY:20, pillBg:"rgba(255,255,255,0.12)",
@@ -309,7 +305,7 @@ const DEFAULTS = {
 };
 
 const state = {
-  images: [],            // {id, src, img, caption, w, h, userW?, capColor?}
+  images: [],            // {id, src, img, caption, w, h, userH?, capColor?}
   title: "评审组图标题",
   note: "评审备注",
   titleColor: null,      // 单独标题颜色（null=跟随全局文字颜色）
@@ -361,10 +357,12 @@ function computeLayout(){
   const p=state.p;
   const imgs=state.images;
   const perRow=Math.max(1,Math.min(imgs.length||1,Math.round(p.maxPerRow)));
-  // 每张图统一缩放到 imgW
+  // 每张图统一缩放到相同高度（imgH），宽度按原始比例自适应；userH 为用户拖拽后的自定义高度
   const sized=imgs.map(it=>{
-    const ratio=(it.h&&it.w)?it.h/it.w:1.6;
-    return {...it, dw:p.imgW, dh:Math.round(p.imgW*ratio)};
+    const ratio=(it.h&&it.w)?it.h/it.w:1.6; // 高/宽
+    const dh=Math.max(40, Math.round(it.userH || p.imgH));
+    const dw=Math.max(20, Math.round(dh/ratio));
+    return {...it, dw, dh};
   });
   // 分行
   const rows=[];
@@ -386,7 +384,7 @@ function render(){
 
   // 无图片时的占位上传区
   const empty = state.images.length===0;
-  const phW=p.imgW, phH=Math.round(p.imgW*0.62);
+  const phW=Math.round(p.imgH*0.46), phH=Math.round(p.imgH*0.46*0.62);
 
   // 先用临时字体测量标题宽度
   const scale=state.renderScale;
@@ -592,7 +590,20 @@ function drawImageSel(x,y,w,h){
   ctx.save();
   ctx.strokeStyle="#3a86ff"; ctx.lineWidth=3; ctx.setLineDash([]);
   ctx.strokeRect(x-1.5,y-1.5,w+3,h+3);
+  // 右下角缩放手柄
+  const s=Math.max(14, Math.min(26, w*0.06));
+  ctx.fillStyle="#fff"; ctx.strokeStyle="#3a86ff"; ctx.lineWidth=2.5;
+  ctx.fillRect(x+w-s/2, y+h-s/2, s, s);
+  ctx.strokeRect(x+w-s/2, y+h-s/2, s, s);
   ctx.restore();
+}
+// 命中选中图片右下角缩放手柄
+function hitResizeHandle(x,y){
+  if(state.selImage==null||!state.layout) return false;
+  const it=state.layout.items.find(i=>i.index===state.selImage);
+  if(!it) return false;
+  const cx=it.img.x+it.img.w, cy=it.img.y+it.img.h;
+  return Math.hypot(x-cx,y-cy) <= 18;
 }
 function drawPlaceholder(x,y,w,h){
   ctx.save();
@@ -670,7 +681,6 @@ function renderList(){
         <div class="caprow">
           <input type="color" class="capcolor" value="${capCol}" title="标注颜色" />
           <button class="mini repl" data-act="repl" title="替换这张图片">替换</button>
-          <button class="mini" data-act="resetcap" title="标注颜色恢复默认">色↺</button>
         </div>
       </div>
       <div class="ctrls">
@@ -691,7 +701,6 @@ function renderList(){
       else if(act==="down") moveImage(idx,idx+2);
       else if(act==="del"){ if(state.selImage===idx) state.selImage=null; state.images.splice(idx,1); renderList(); render(); }
       else if(act==="repl") replaceImage(idx);
-      else if(act==="resetcap"){ delete it.capColor; renderList(); render(); }
     }));
 
     // 拖拽排序
@@ -840,6 +849,12 @@ function bindCanvas(){
       drag={kind:"arrownew",arrow:a}; state._arrowPreview=a; state.selArrow=null; render(); return;
     }
     // 编辑模式
+    // 优先：拖拽选中图片右下角缩放
+    if(state.selImage!=null && hitResizeHandle(x,y)){
+      const it=state.layout.items.find(i=>i.index===state.selImage);
+      drag={kind:"resize",index:state.selImage,imgTop:it.img.y};
+      return;
+    }
     if(state.layout && state.layout.emptyDrop && rectHit(state.layout.emptyDrop,x,y)){ $("fileInput").click(); return; }
     const im=hitImage(x,y);
     if(im!=null){ drag={kind:"image",index:im,sx:x,sy:y,moved:false}; return; }
@@ -860,6 +875,7 @@ function bindCanvas(){
       render();
     }
     else if(drag.kind==="arrowmove"){ const dx=x-drag.ox,dy=y-drag.oy,a=drag.arrow; a.x1+=dx;a.y1+=dy;a.x2+=dx;a.y2+=dy; drag.ox=x;drag.oy=y; render(); }
+    else if(drag.kind==="resize"){ const it=state.images[drag.index]; if(it){ it.userH=Math.max(60, y-drag.imgTop); render(); } }
     else if(drag.kind==="image"){ if(Math.hypot(x-drag.sx,y-drag.sy)>5){ drag.moved=true; updateDragHint(x,y); render(); } }
     else if(drag.kind==="text"){ if(Math.hypot(x-drag.sx,y-drag.sy)>5) drag.moved=true; }
   });
@@ -877,7 +893,8 @@ function bindCanvas(){
     if(drag||editorOpen()) return;
     if(state.mode==="arrow"){ canvas.style.cursor=(hitArrowPt(toBoard(e).x,toBoard(e).y)?"move":"crosshair"); return; }
     const {x,y}=toBoard(e);
-    if(state.layout && state.layout.emptyDrop && rectHit(state.layout.emptyDrop,x,y)) canvas.style.cursor="pointer";
+    if(state.selImage!=null && hitResizeHandle(x,y)) canvas.style.cursor="nwse-resize";
+    else if(state.layout && state.layout.emptyDrop && rectHit(state.layout.emptyDrop,x,y)) canvas.style.cursor="pointer";
     else if(hitImage(x,y)!=null) canvas.style.cursor="grab";
     else if(hitText(x,y)) canvas.style.cursor="text";
     else canvas.style.cursor="default";
@@ -966,7 +983,7 @@ function bindParams(){
     p.bg=$("bgColorText").value||DEFAULTS.bg;
     p.fg=$("fgColorText").value||DEFAULTS.fg;
     p.maxPerRow=num($("pMaxPerRow").value,DEFAULTS.maxPerRow);
-    p.imgW=num($("pImgW").value,DEFAULTS.imgW);
+    p.imgH=num($("pImgH").value,DEFAULTS.imgH);
     p.colGap=num($("pColGap").value,DEFAULTS.colGap);
     p.rowGap=num($("pRowGap").value,DEFAULTS.rowGap);
     p.titleSize=num($("pTitleSize").value,DEFAULTS.titleSize);
@@ -979,7 +996,7 @@ function bindParams(){
     if(state.noteColor==null) $("noteColor").value=p.fg;
     render();
   };
-  ["pMaxPerRow","pImgW","pColGap","pRowGap","pTitleSize","pCapSize","pPadX","pPadY"]
+  ["pMaxPerRow","pImgH","pColGap","pRowGap","pTitleSize","pCapSize","pPadX","pPadY"]
     .forEach(id=>$(id).addEventListener("input",sync));
   const linkColor=(colorId,textId)=>{
     $(colorId).addEventListener("input",()=>{ $(textId).value=$(colorId).value; sync(); });
@@ -1004,7 +1021,7 @@ function bindParams(){
 function resetParams(){
   $("bgColor").value=DEFAULTS.bg; $("bgColorText").value=DEFAULTS.bg;
   $("fgColor").value=DEFAULTS.fg; $("fgColorText").value=DEFAULTS.fg;
-  $("pMaxPerRow").value=DEFAULTS.maxPerRow; $("pImgW").value=DEFAULTS.imgW;
+  $("pMaxPerRow").value=DEFAULTS.maxPerRow; $("pImgH").value=DEFAULTS.imgH;
   $("pColGap").value=DEFAULTS.colGap; $("pRowGap").value=DEFAULTS.rowGap;
   $("pTitleSize").value=DEFAULTS.titleSize; $("pCapSize").value=DEFAULTS.capSize;
   $("pPadX").value=DEFAULTS.padX; $("pPadY").value=DEFAULTS.padY;
